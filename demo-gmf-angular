@@ -1,0 +1,541 @@
+<div style="padding: 20px; max-width: 1000px; margin: 0 auto;">
+  <h1>GMF CIAM Authentication Demo with API Methods</h1>
+  
+  <!-- Loading State -->
+  <div *ngIf="isLoading" style="text-align: center; padding: 20px;">
+    <p>Loading...</p>
+  </div>
+  
+  <!-- Success/Error Messages -->
+  <div *ngIf="successMessage" style="padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724; margin-bottom: 20px;">
+    ✅ {{ successMessage }}
+  </div>
+  <div *ngIf="errorMessage" style="padding: 15px; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px; color: #721c24; margin-bottom: 20px;">
+    ❌ {{ errorMessage }}
+  </div>
+  
+  <div *ngIf="!isLoading">
+    <!-- Not Authenticated Section -->
+    <div *ngIf="!isAuthenticated">
+      <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; margin-bottom: 20px;">
+        <h2>Welcome to GMF CIAM SDK Demo</h2>
+        <p>You are not logged in. Please authenticate to access all features.</p>
+        <button (click)="loginButton()" style="padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer;">
+          🔐 Login
+        </button>
+      </div>
+      
+      <!-- Password Reset Section (Available when not authenticated) -->
+      <div style="padding: 20px; background: #e9ecef; border-radius: 8px;">
+        <h3>🔄 Forgot Your Password?</h3>
+        <div style="display: flex; gap: 10px; align-items: end; margin-top: 15px;">
+          <div style="flex: 1;">
+            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Email Address:</label>
+            <input 
+              type="email" 
+              [(ngModel)]="resetEmail" 
+              placeholder="Enter your email address"
+              style="width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 4px;"
+            />
+          </div>
+          <button 
+            (click)="resetPassword()" 
+            [disabled]="!resetEmail"
+            style="padding: 10px 20px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;"
+          >
+            Send Reset Email
+          </button>
+        </div>
+        <div *ngIf="resetMessage" style="margin-top: 15px; padding: 12px; background: #f8f9fa; border-left: 4px solid #007bff; border-radius: 4px;">
+          {{ resetMessage }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Authenticated Section -->
+    <div *ngIf="isAuthenticated">
+      <!-- Welcome Section -->
+      <div style="padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 8px; margin-bottom: 20px;">
+        <h2>🎉 Welcome back!</h2>
+        <p style="margin: 10px 0;">You are successfully authenticated.</p>
+        <div style="display: flex; gap: 15px; margin-top: 15px;">
+          <button (click)="logout()" style="padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            🚪 Logout
+          </button>
+          <button (click)="refreshToken()" style="padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            🔄 Refresh Token
+          </button>
+          <button (click)="toggleAdvancedFeatures()" style="padding: 10px 20px; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            {{ showAdvancedFeatures ? '👁️ Hide' : '⚙️ Show' }} Advanced Features
+          </button>
+        </div>
+      </div>
+
+      <!-- Basic Profile Section -->
+      <div style="display: grid; gap: 20px; grid-template-columns: 1fr 1fr; margin-bottom: 20px;">
+        <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007bff;">
+          <h3>👤 User Profile</h3>
+          <div *ngIf="userProfile">
+            <div style="display: flex; align-items: center; margin-bottom: 15px;">
+              <img 
+                *ngIf="userProfile.picture" 
+                [src]="userProfile.picture" 
+                alt="Profile Picture" 
+                style="width: 60px; height: 60px; border-radius: 50%; margin-right: 15px; border: 3px solid #007bff;"
+              />
+              <div>
+                <p style="margin: 0; font-size: 18px; font-weight: bold;">{{ userProfile.name || 'No name provided' }}</p>
+                <p style="margin: 0; color: #6c757d;">{{ userProfile.email || 'No email provided' }}</p>
+              </div>
+            </div>
+            <p><strong>Username:</strong> {{ userProfile.nickname || 'Not set' }}</p>
+            <p><strong>User ID:</strong> {{ userProfile.sub || 'Not available' }}</p>
+          </div>
+          <button (click)="refreshProfile()" [disabled]="isLoading" style="margin-top: 10px; padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+            🔄 {{ isLoading ? 'Loading...' : 'Refresh Profile' }}
+          </button>
+        </div>
+
+        <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
+          <h3>🔑 Token Information</h3>
+          <div *ngIf="tokenInfo">
+            <p><strong>Access Token:</strong> 
+              <span style="padding: 4px 8px; background: #d4edda; border-radius: 4px; font-family: monospace; font-size: 12px;">
+                {{ tokenInfo.accessToken ? 'Valid ✅' : 'Invalid ❌' }}
+              </span>
+            </p>
+            <p><strong>Expires At:</strong> {{ tokenInfo.expiresAt | date:'medium' }}</p>
+            <p><strong>Time Until Expiry:</strong> 
+              <span [style.color]="tokenInfo.timeUntilExpiry === 'Expired' ? '#dc3545' : '#28a745'">
+                {{ tokenInfo.timeUntilExpiry }}
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Features Section -->
+      <div *ngIf="showAdvancedFeatures" style="border: 2px dashed #6f42c1; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+        <h2 style="color: #6f42c1; margin-top: 0;">⚙️ Advanced API Features</h2>
+        
+        <!-- Detailed Profile Section -->
+        <div style="margin-bottom: 30px; padding: 20px; background: #fff3cd; border-radius: 8px;">
+          <h3>📋 Detailed Profile (Management API)</h3>
+          <p style="color: #856404; margin-bottom: 15px;">Get extended user information via Auth0 Management API</p>
+          <button 
+            (click)="getDetailedProfile()" 
+            [disabled]="isLoading"
+            style="padding: 10px 20px; background: #ffc107; color: #212529; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 15px;"
+          >
+            {{ isLoading ? '⏳ Loading...' : '📊 Get Detailed Profile' }}
+          </button>
+          <div *ngIf="detailedProfile" style="background: #f8f9fa; padding: 15px; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+            <pre style="font-size: 12px; margin: 0;">{{ detailedProfile | json }}</pre>
+          </div>
+        </div>
+
+        <!-- Update Profile Section -->
+        <div style="margin-bottom: 30px; padding: 20px; background: #d1ecf1; border-radius: 8px;">
+          <h3>✏️ Update Profile</h3>
+          <p style="color: #0c5460; margin-bottom: 15px;">Update your profile information</p>
+          <div style="display: grid; gap: 15px; grid-template-columns: 1fr 1fr; margin-bottom: 15px;">
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Full Name:</label>
+              <input 
+                type="text" 
+                [(ngModel)]="profileUpdates.name" 
+                [placeholder]="userProfile?.name || 'Enter your full name'"
+                style="width: 100%; padding: 10px; border: 1px solid #bee5eb; border-radius: 4px;"
+              />
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Nickname:</label>
+              <input 
+                type="text" 
+                [(ngModel)]="profileUpdates.nickname" 
+                [placeholder]="userProfile?.nickname || 'Enter your nickname'"
+                style="width: 100%; padding: 10px; border: 1px solid #bee5eb; border-radius: 4px;"
+              />
+            </div>
+          </div>
+          <button 
+            (click)="updateProfile()" 
+            [disabled]="isLoading || (!profileUpdates.name.trim() && !profileUpdates.nickname.trim())"
+            style="padding: 10px 20px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;"
+          >
+            {{ isLoading ? '⏳ Updating...' : '💾 Update Profile' }}
+          </button>
+        </div>
+
+        <!-- Change Password Section -->
+        <div style="margin-bottom: 30px; padding: 20px; background: #f8d7da; border-radius: 8px;">
+          <h3>🔐 Change Password</h3>
+          <p style="color: #721c24; margin-bottom: 15px;">Change your account password securely</p>
+          <div style="display: grid; gap: 15px; max-width: 500px;">
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Current Password:</label>
+              <input 
+                type="password" 
+                [(ngModel)]="changePasswordData.oldPassword" 
+                placeholder="Enter your current password"
+                style="width: 100%; padding: 10px; border: 1px solid #f5c6cb; border-radius: 4px;"
+              />
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">New Password:</label>
+              <input 
+                type="password" 
+                [(ngModel)]="changePasswordData.newPassword" 
+                placeholder="Enter new password (min 8 characters)"
+                style="width: 100%; padding: 10px; border: 1px solid #f5c6cb; border-radius: 4px;"
+              />
+            </div>
+            <div>
+              <label style="display: block; margin-bottom: 5px; font-weight: bold;">Confirm New Password:</label>
+              <input 
+                type="password" 
+                [(ngModel)]="changePasswordData.confirmPassword" 
+                placeholder="Confirm your new password"
+                style="width: 100%; padding: 10px; border: 1px solid #f5c6cb; border-radius: 4px;"
+              />
+            </div>
+          </div>
+          <button 
+            (click)="changePassword()" 
+            [disabled]="isLoading || !changePasswordData.oldPassword || !changePasswordData.newPassword || !changePasswordData.confirmPassword || changePasswordData.newPassword !== changePasswordData.confirmPassword || changePasswordData.newPassword.length < 8"
+            style="margin-top: 15px; padding: 10px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;"
+          >
+            {{ isLoading ? '⏳ Changing...' : '🔒 Change Password' }}
+          </button>
+          <div *ngIf="changePasswordData.newPassword && changePasswordData.confirmPassword && changePasswordData.newPassword !== changePasswordData.confirmPassword" 
+               style="margin-top: 10px; color: #dc3545; font-size: 14px;">
+            ⚠️ Passwords do not match
+          </div>
+          <div *ngIf="changePasswordData.newPassword && changePasswordData.newPassword.length < 8" 
+               style="margin-top: 10px; color: #dc3545; font-size: 14px;">
+            ⚠️ Password must be at least 8 characters long
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+import { Component, OnInit } from '@angular/core';
+import { CommonModule, JsonPipe, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import GMFCIAMAuth, { AuthProvider, UserProfile } from 'GMF-CIAM-sdk';
+
+interface TokenInfo {
+  accessToken: string | null;
+  expiresAt: Date | null;
+  timeUntilExpiry: string;
+}
+
+interface Auth0Config {
+  domain: string;
+  clientId: string;
+  audience: string;
+  redirectUri: string;
+  scope: string;
+  clientSecret?: string; // Optional for Management API
+}
+
+@Component({
+  selector: 'app-root',
+  standalone: true,
+  imports: [CommonModule, JsonPipe, DatePipe, FormsModule],
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.css'
+})
+export class AppComponent implements OnInit {
+  authClient: AuthProvider | null = null;
+  isAuthenticated: boolean = false;
+  isLoading: boolean = true;
+  userProfile: UserProfile | null = null;
+  detailedProfile: UserProfile | null = null;
+  tokenInfo: TokenInfo | null = null;
+  
+  // Form data
+  resetEmail: string = '';
+  resetMessage: string = '';
+  changePasswordData = {
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  };
+  profileUpdates = {
+    name: '',
+    nickname: ''
+  };
+  
+  // UI state
+  showAdvancedFeatures: boolean = false;
+  successMessage: string = '';
+  errorMessage: string = '';
+  
+  auth0Config: Auth0Config = {
+    domain: 'dev-vfzstbs1dxkuagab.us.auth0.com',
+    clientId: 'CP6smmR7f8NVud69LolHjy8YWSPUZ7g0',
+    audience: 'https://dev-vfzstbs1dxkuagab.us.auth0.com/api/v2/', 
+    redirectUri: window.location.origin,
+    scope: 'openid profile email offline_access',
+    // clientSecret: 'your-client-secret' // Uncomment and add for Management API features
+  };
+  
+  async ngOnInit(): Promise<void> {
+    await this.initializeAuth();
+  }
+  
+  async initializeAuth(): Promise<void> {
+    try {
+      this.authClient = await GMFCIAMAuth.createAuthProvider('auth0', this.auth0Config);
+      this.isAuthenticated = await this.authClient.isAuthenticated();
+      
+      if (this.isAuthenticated) {
+        try {
+          this.userProfile = await this.authClient.getUserProfile();
+          await this.updateTokenInfo();
+          console.log('User is logged in:', this.userProfile);
+        } catch (error) {
+          console.error('Error getting user profile:', error);
+          this.isAuthenticated = false;
+          this.authClient.logout();
+        }
+      } else {
+        console.log('User is not logged in');
+      }
+    } catch (error) {
+      console.error('Auth initialization error:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+  
+  async updateTokenInfo(): Promise<void> {
+    try {
+      if (this.authClient && this.isAuthenticated) {
+        const accessToken = await this.authClient.getAccessToken();
+        const expiresAt = (this.authClient as unknown as { expiresAt: number | null }).expiresAt;
+        const now = new Date().getTime();
+        const timeUntilExpiry = expiresAt ? Math.max(0, Math.floor((expiresAt - now) / 1000 / 60)) : 0;
+        
+        this.tokenInfo = {
+          accessToken: accessToken,
+          expiresAt: expiresAt ? new Date(expiresAt) : null,
+          timeUntilExpiry: timeUntilExpiry > 0 ? `${timeUntilExpiry} minutes` : 'Expired'
+        };
+      }
+    } catch (error) {
+      console.error('Error getting token info:', error);
+    }
+  }
+  
+  async loginButton(): Promise<void> {
+    if (!this.authClient) {
+      await this.initializeAuth();
+    }
+    
+    if (this.authClient) {
+      try {
+        await this.authClient.login();
+      } catch (error) {
+        console.error('Login error:', error);
+      }
+    }
+  }
+  
+  logout(): void {
+    if (this.authClient) {
+      this.authClient.logout();
+      this.isAuthenticated = false;
+      this.userProfile = null;
+      this.detailedProfile = null;
+      this.tokenInfo = null;
+    }
+  }
+  
+  async refreshToken(): Promise<void> {
+    if (this.authClient && this.isAuthenticated) {
+      try {
+        const success = await this.authClient.refreshToken();
+        if (success) {
+          console.log('Token refreshed successfully');
+          await this.updateTokenInfo();
+          this.userProfile = await this.authClient.getUserProfile();
+          this.showSuccess('Token refreshed successfully');
+        }
+      } catch (error) {
+        console.error('Token refresh failed:', error);
+        this.isAuthenticated = false;
+        this.userProfile = null;
+        this.tokenInfo = null;
+        this.showError('Token refresh failed. Please log in again.');
+      }
+    }
+  }
+  
+  async resetPassword(): Promise<void> {
+    if (!this.resetEmail) {
+      this.resetMessage = 'Please enter an email address';
+      return;
+    }
+    
+    if (!this.authClient) {
+      await this.initializeAuth();
+    }
+    
+    if (this.authClient) {
+      try {
+        await this.authClient.resetPassword(this.resetEmail);
+        this.resetMessage = 'Password reset email sent successfully! Check your inbox.';
+        this.showSuccess('Password reset email sent successfully');
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        console.error('Password reset error:', error);
+        this.resetMessage = `Password reset failed: ${errorMessage}`;
+        this.showError(`Password reset failed: ${errorMessage}`);
+      }
+    }
+  }
+
+  // NEW: Get detailed user profile using Management API
+  async getDetailedProfile(): Promise<void> {
+    if (!this.authClient || !this.isAuthenticated) return;
+    
+    this.isLoading = true;
+    this.clearMessages();
+    
+    try {
+      this.detailedProfile = await this.authClient.getDetailedUserProfile();
+      this.showSuccess('Detailed profile loaded successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.showError(`Failed to get detailed profile: ${errorMessage}`);
+      console.error('Detailed profile error:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // NEW: Change password for authenticated user
+  async changePassword(): Promise<void> {
+    if (!this.authClient || !this.isAuthenticated) return;
+    
+    if (!this.changePasswordData.oldPassword || !this.changePasswordData.newPassword) {
+      this.showError('Both old and new passwords are required');
+      return;
+    }
+    
+    if (this.changePasswordData.newPassword !== this.changePasswordData.confirmPassword) {
+      this.showError('New passwords do not match');
+      return;
+    }
+    
+    if (this.changePasswordData.newPassword.length < 8) {
+      this.showError('New password must be at least 8 characters long');
+      return;
+    }
+    
+    this.isLoading = true;
+    this.clearMessages();
+    
+    try {
+      await this.authClient.changePassword(
+        this.changePasswordData.oldPassword,
+        this.changePasswordData.newPassword
+      );
+      
+      // Clear the form
+      this.changePasswordData = {
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      };
+      
+      this.showSuccess('Password changed successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.showError(`Password change failed: ${errorMessage}`);
+      console.error('Password change error:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // NEW: Update user profile
+  async updateProfile(): Promise<void> {
+    if (!this.authClient || !this.isAuthenticated) return;
+    
+    const updates: Record<string, string> = {};
+    if (this.profileUpdates.name.trim()) updates.name = this.profileUpdates.name.trim();
+    if (this.profileUpdates.nickname.trim()) updates.nickname = this.profileUpdates.nickname.trim();
+    
+    if (Object.keys(updates).length === 0) {
+      this.showError('No updates to apply');
+      return;
+    }
+    
+    this.isLoading = true;
+    this.clearMessages();
+    
+    try {
+      await this.authClient.updateUserProfile(updates);
+      
+      // Refresh the profile
+      this.userProfile = await this.authClient.getUserProfile(true);
+      
+      // Clear the form
+      this.profileUpdates = { name: '', nickname: '' };
+      
+      this.showSuccess('Profile updated successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.showError(`Profile update failed: ${errorMessage}`);
+      console.error('Profile update error:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  // NEW: Refresh user profile
+  async refreshProfile(): Promise<void> {
+    if (!this.authClient || !this.isAuthenticated) return;
+    
+    this.isLoading = true;
+    this.clearMessages();
+    
+    try {
+      this.userProfile = await this.authClient.getUserProfile(true);
+      this.showSuccess('Profile refreshed successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      this.showError(`Failed to refresh profile: ${errorMessage}`);
+      console.error('Profile refresh error:', error);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  toggleAdvancedFeatures(): void {
+    this.showAdvancedFeatures = !this.showAdvancedFeatures;
+  }
+
+  private showSuccess(message: string): void {
+    this.successMessage = message;
+    this.errorMessage = '';
+    setTimeout(() => {
+      this.successMessage = '';
+    }, 5000);
+  }
+
+  private showError(message: string): void {
+    this.errorMessage = message;
+    this.successMessage = '';
+  }
+
+  private clearMessages(): void {
+    this.successMessage = '';
+    this.errorMessage = '';
+  }
+}
